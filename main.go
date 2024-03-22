@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -33,13 +34,13 @@ func main() {
 	}
 
 	vIDc := make(chan string, 40)
-	replacer := strings.NewReplacer("?", "", "/", "", "|", "")
+	rx := regexp.MustCompile(`\([A-Za-z0-9\s]+\)|\[[A-Za-z0-9\s]+\]|[?\/|]`)
 	var wg sync.WaitGroup
 
 	wg.Add(len(links))
 
 	for i := 0; i < 2; i++ {
-		go downloadSong(vIDc, replacer, &wg)
+		go downloadSong(vIDc, rx, &wg)
 	}
 
 	for _, link := range links {
@@ -74,14 +75,19 @@ func getNjoySongsChart() ([]string, error) {
 	return links, nil
 }
 
-func downloadSong(vIDc chan string, r *strings.Replacer, wg *sync.WaitGroup) {
+func downloadSong(vIDc chan string, r *regexp.Regexp, wg *sync.WaitGroup) {
 	client := youtube.Client{}
 
 	for vID := range vIDc {
 		func(vID string) {
 			video, err := client.GetVideo(vID)
 			if err != nil {
-				log.Println(err, "retrying...")
+				if vID == "" {
+					log.Println("skipping empty link download")
+					wg.Done()
+					return
+				}
+				log.Println(err, "retrying...", vID)
 				vIDc <- vID
 				return
 			}
@@ -95,7 +101,9 @@ func downloadSong(vIDc chan string, r *strings.Replacer, wg *sync.WaitGroup) {
 
 			}
 			defer stream.Close()
-			file, err := os.Create(fmt.Sprintf("mp3s/%s.mp3", r.Replace(video.Title)))
+
+			fName := strings.TrimSpace(r.ReplaceAllString(video.Title, ""))
+			file, err := os.Create(fmt.Sprintf("mp3s/%s.mp3", fName))
 			if err != nil {
 				log.Println(err, "retrying...")
 				vIDc <- vID
@@ -112,7 +120,7 @@ func downloadSong(vIDc chan string, r *strings.Replacer, wg *sync.WaitGroup) {
 
 			}
 
-			fmt.Printf("downloaded %s to the mp3s folder\n", video.Title)
+			log.Printf("downloaded: %s to the mp3s folder\n", fName)
 			wg.Done()
 		}(vID)
 	}
