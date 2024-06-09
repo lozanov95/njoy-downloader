@@ -39,7 +39,7 @@ func main() {
 
 	wg.Add(len(links))
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 4; i++ {
 		go downloadSong(vIDc, rx, &wg)
 	}
 
@@ -92,6 +92,15 @@ func downloadSong(vIDc chan string, r *regexp.Regexp, wg *sync.WaitGroup) {
 				return
 			}
 
+			fName := strings.TrimSpace(r.ReplaceAllString(video.Title, ""))
+			filePath := fmt.Sprintf("mp3s/%s.mp3", fName)
+
+			if doesPathExists(filePath) {
+				log.Printf("%s is already donwloaded.\n", fName)
+				wg.Done()
+				return
+			}
+
 			formats := video.Formats.WithAudioChannels().Type("audio/webm")
 			stream, _, err := client.GetStream(video, &formats[0])
 			if err != nil {
@@ -102,7 +111,6 @@ func downloadSong(vIDc chan string, r *regexp.Regexp, wg *sync.WaitGroup) {
 			}
 			defer stream.Close()
 
-			fName := strings.TrimSpace(r.ReplaceAllString(video.Title, ""))
 			file, err := os.Create(fmt.Sprintf("mp3s/%s.mp3", fName))
 			if err != nil {
 				log.Println(err, "retrying...")
@@ -124,4 +132,13 @@ func downloadSong(vIDc chan string, r *regexp.Regexp, wg *sync.WaitGroup) {
 			wg.Done()
 		}(vID)
 	}
+}
+
+func doesPathExists(path string) bool {
+	_, err := os.Stat(path)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+
+	return true
 }
