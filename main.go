@@ -96,7 +96,7 @@ func downloadSong(vIDc chan string, r *regexp.Regexp, wg *sync.WaitGroup) {
 			filePath := fmt.Sprintf("mp3s/%s.mp3", fName)
 
 			if doesPathExists(filePath) {
-				log.Printf("%s is already donwloaded.\n", fName)
+				log.Printf("%s is already downloaded.\n", fName)
 				wg.Done()
 				return
 			}
