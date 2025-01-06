@@ -101,7 +101,7 @@ func downloadSong(vIDc chan string, r *regexp.Regexp, wg *sync.WaitGroup) {
 				return
 			}
 
-			formats := video.Formats.WithAudioChannels().Type("audio/webm")
+			formats := video.Formats.WithAudioChannels().Type("audio/mp4")
 			stream, _, err := client.GetStream(video, &formats[0])
 			if err != nil {
 				log.Println(err, "retrying...")
