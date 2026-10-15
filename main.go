@@ -38,12 +38,15 @@ func main() {
 	var wg sync.WaitGroup
 
 	wg.Add(len(links))
-
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		go downloadSong(vIDc, rx, &wg)
 	}
 
 	for _, link := range links {
+		if !strings.HasPrefix(link, "https://www.youtube.com/watch") {
+			fmt.Printf("Expected a direct youtube link, %s\n", link)
+			continue
+		}
 		vIDc <- link
 	}
 
@@ -51,7 +54,7 @@ func main() {
 }
 
 func getNjoySongsChart() ([]string, error) {
-	url := "https://njoy.bg/charts/listing/?chart_id=3"
+	url := "https://njoy.bg/charts/2.html"
 	var links []string
 
 	resp, err := http.Get(url)
@@ -65,11 +68,9 @@ func getNjoySongsChart() ([]string, error) {
 		return links, errors.New("failed to read the response body")
 	}
 
-	s := doc.Find(".songs-container")
-	rawLinks := s.Find(".buttons > .article_youtube_link > span")
-
+	rawLinks := doc.Find(".rnk2-list > .rnk2-row .rnk-yt")
 	links = rawLinks.Map(func(i int, s *goquery.Selection) string {
-		return s.Text()
+		return s.AttrOr("href", "")
 	})
 
 	return links, nil
